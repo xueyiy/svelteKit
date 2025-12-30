@@ -28,10 +28,15 @@ export function getSession({ locals }) {
  * Handles errors that occur during server-side rendering or in the handle function
  * @param {Object} params - Error handling parameters
  * @param {Error} params.error - The error that occurred
- * @param {Object} params.request - The request object
+ * @param {Object} params.event - The event object (request)
  * @returns {Object} Error information to display
  */
-export function handleError({ error, request }) {
+export function handleError({ error, event }) {
+	// Ensure error is always defined
+	if (!error) {
+		error = new Error('Unknown error occurred');
+	}
+	
 	console.error('Error occurred:', error);
 	
 	// Return error information that will be passed to __error.svelte
@@ -41,3 +46,4 @@ export function handleError({ error, request }) {
 		status: error?.status || 500
 	};
 }
+
