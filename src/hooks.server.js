@@ -8,11 +8,20 @@ export async function handle({ event, resolve }) {
         // Parse cookies from the request
         const cookies = cookie.parse(event.request.headers.get('cookie') || '');
         
-        // Decode JWT from base64 if it exists
-        const jwt = cookies.jwt ? Buffer.from(cookies.jwt, 'base64').toString('utf-8') : null;
-        
+        // Decode JWT from base64 if it exists, safely
+        let jwt = null;
+        if (cookies.jwt) {
+            try {
+                const decoded = Buffer.from(cookies.jwt, 'base64').toString('utf-8');
+                jwt = JSON.parse(decoded);
+            } catch (err) {
+                console.warn('Invalid JWT cookie, ignoring:', err.message);
+                jwt = null;
+            }
+        }
+
         // Set user info in locals
-        event.locals.user = jwt ? JSON.parse(jwt) : null;
+        event.locals.user = jwt || null;
 
         // Proceed with request
         return await resolve(event);
@@ -25,17 +34,19 @@ export async function handle({ event, resolve }) {
 
 /**
  * Provide session info to the client
- * Note: getSession is used in older SvelteKit versions. 
- * In newer versions, access locals in +page.server.js or load functions.
+ * For SvelteKit <1.0, getSession is used; newer versions can access locals directly
  */
 export function getSession({ locals }) {
+    const user = locals.user;
     return {
-        user: locals.user && {
-            username: locals.user.username,
-            email: locals.user.email,
-            image: locals.user.image,
-            bio: locals.user.bio
-        }
+        user: user
+            ? {
+                  username: user.username,
+                  email: user.email,
+                  image: user.image,
+                  bio: user.bio
+              }
+            : null
     };
 }
 
@@ -43,13 +54,21 @@ export function getSession({ locals }) {
  * Global error handler
  */
 export function handleError({ error, event }) {
-    console.error('Error occurred:', error);
+    // Ensure error is always an object
+    if (!error) {
+        error = new Error('Unknown error');
+    }
 
-    // Return minimal info in production
+    console.error('Error occurred during request:', {
+        message: error.message,
+        status: error.status,
+        stack: error.stack
+    });
+
     return {
-        message: error?.message || 'An unexpected error occurred',
-        status: error?.status || 500,
+        message: error.message || 'An unexpected error occurred',
+        status: error.status || 500,
         // Only include stack in development
-        stack: process.env.NODE_ENV === 'development' ? error?.stack : undefined
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     };
 }
