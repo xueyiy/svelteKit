@@ -16,6 +16,17 @@ export async function handle({ event, resolve }) {
     return resolve(event);
 }
 
+export function getSession({ locals }) {
+    return {
+        user: locals.user && {
+            username: locals.user.username,
+            email: locals.user.email,
+            image: locals.user.image,
+            bio: locals.user.bio
+        }
+    };
+}
+
 // Only export handleError safely
 export function handleError({ error }) {
     // Ensure error object exists
